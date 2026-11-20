@@ -67,7 +67,7 @@ final class DictationController {
     }
 
     private var transcriber: any LocalTranscribing
-    private let transcriberFactory: () async -> any LocalTranscribing
+    private let transcriberFactory: () async throws -> any LocalTranscribing
     private let cleaner: (any TranscriptCleaning)?
     private let cleanupSettings: AppleIntelligenceCleanupSettings
     private let customVocabularySettings: CustomVocabularySettings
@@ -153,7 +153,7 @@ final class DictationController {
         audio: (any AudioManaging)? = nil,
         keyboardBridge: KeyboardBridge? = nil,
         transcriber: (any LocalTranscribing)? = nil,
-        transcriberFactory: (() async -> any LocalTranscribing)? = nil,
+        transcriberFactory: (() async throws -> any LocalTranscribing)? = nil,
         fileManager: FileManager = .default,
         now: @escaping () -> TimeInterval = { Date().timeIntervalSince1970 },
         autoPrepareOnInit: Bool = true,
@@ -202,7 +202,10 @@ final class DictationController {
         }
 
         if autoPrepareOnInit {
-            if hasCachedModel {
+            if !DictationLocale.selection.isEmpty {
+                engineName = "Apple Speech"
+                prepareModel()
+            } else if hasCachedModel {
                 engineName = "Parakeet V2"
                 prepareModel()
             } else if #available(iOS 26.0, *), AppleSpeechTranscriber.isAvailable {
@@ -656,6 +659,7 @@ final class DictationController {
     func prepareModel() {
         modelPrepGeneration &+= 1
         let prepGen = modelPrepGeneration
+        isModelReady = false
         phase = .preparingModel
         copied = false
         modelPreparation = ModelPreparationProgress(
@@ -665,7 +669,7 @@ final class DictationController {
 
         Task {
             do {
-                let candidate = await transcriberFactory()
+                let candidate = try await transcriberFactory()
                 guard self.modelPrepGeneration == prepGen else { return }
                 engineName = candidate.displayName
                 try await candidate.prepare { [weak self] progress in
@@ -694,11 +698,15 @@ final class DictationController {
         }
     }
 
-    private static func defaultTranscriber() async -> any LocalTranscribing {
-        if #available(iOS 26.0, *),
-           AppleSpeechTranscriber.isAvailable,
-           let locale = await AppleSpeechTranscriber.preferredLocale() {
-            return AppleSpeechTranscriber(locale: locale)
+    private static func defaultTranscriber() async throws -> any LocalTranscribing {
+        if #available(iOS 26.0, *) {
+            if AppleSpeechTranscriber.isAvailable,
+               let locale = await AppleSpeechTranscriber.preferredLocale() {
+                return AppleSpeechTranscriber(locale: locale)
+            }
+            if !DictationLocale.selection.isEmpty {
+                throw AppleSpeechTranscriber.TranscriberError.unavailable
+            }
         }
         return ParakeetTranscriber()
     }

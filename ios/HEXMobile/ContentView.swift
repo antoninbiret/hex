@@ -1,3 +1,4 @@
+import Speech
 import SwiftUI
 import UIKit
 
@@ -40,6 +41,8 @@ struct ContentView: View {
     @Binding var openedFromKeyboard: Bool
     @Binding var showSetup: Bool
     @State private var setupMonitor = KeyboardSetupMonitor()
+    @AppStorage(DictationLocale.key, store: UserDefaults(suiteName: KeyboardBridge.appGroup)) private var spokenLocale = ""
+    @State private var speechLocales: [Locale] = []
     @State private var practiceText = ""
     @State private var showReturnAppsEditor = false
     @FocusState private var practiceFocused: Bool
@@ -452,6 +455,42 @@ struct ContentView: View {
             .padding(.horizontal, 16)
             .frame(minHeight: 48)
 
+            if #available(iOS 26.0, *), SpeechTranscriber.isAvailable || !spokenLocale.isEmpty {
+                rowDivider
+
+                HStack(spacing: 12) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        rowTitle("Dictation language")
+                        Text("Language you speak when dictating")
+                            .font(.system(size: 12))
+                            .foregroundStyle(HexTheme.textMuted)
+                    }
+                    Spacer(minLength: 8)
+                    Menu {
+                        Picker("Dictation language", selection: $spokenLocale) {
+                            Text("System").tag("")
+                            ForEach(SpeechTranscriber.isAvailable ? speechLocales : [], id: \.identifier) { locale in
+                                Text(Locale.current.localizedString(forIdentifier: locale.identifier) ?? locale.identifier)
+                                    .tag(locale.identifier)
+                            }
+                        }
+                    } label: {
+                        menuValueLabel(spokenLocale.isEmpty ? "System" :
+                            Locale.current.localizedString(forIdentifier: spokenLocale) ?? spokenLocale)
+                    }
+                    .accessibilityLabel("Dictation language")
+                    .disabled(dictation.phase.isBusy || dictation.isRecording)
+                }
+                .padding(.horizontal, 16)
+                .frame(minHeight: 48)
+                .task {
+                    speechLocales = await SpeechTranscriber.supportedLocales.sorted {
+                        (Locale.current.localizedString(forIdentifier: $0.identifier) ?? $0.identifier)
+                            .localizedStandardCompare(Locale.current.localizedString(forIdentifier: $1.identifier) ?? $1.identifier) == .orderedAscending
+                    }
+                }
+            }
+
             rowDivider
 
             HStack(spacing: 12) {
@@ -541,6 +580,7 @@ struct ContentView: View {
             HexTheme.bgBase,
             in: RoundedRectangle(cornerRadius: HexTheme.cardRadius, style: .continuous)
         )
+        .onChange(of: spokenLocale) { _, _ in dictation.prepareModel() }
     }
 
     private var practiceField: some View {

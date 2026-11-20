@@ -479,7 +479,7 @@ private enum KeyboardSpeech {
         // Same order as the app's AppleSpeechTranscriber.preferredLocale(), so the
         // keyboard uses the assets Hex downloaded.
         var locale: Locale?
-        for identifier in Locale.preferredLanguages + [Locale.current.identifier, "en-US"] {
+        for identifier in DictationLocale.candidates {
             if let supported = await SpeechTranscriber.supportedLocale(equivalentTo: Locale(identifier: identifier)) {
                 locale = supported
                 break

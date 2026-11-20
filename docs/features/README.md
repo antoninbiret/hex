@@ -2937,6 +2937,8 @@ Windows `hex app` -> one tray process, Rune window // dev.rune-ui-windows
 ├── Modes app icons: the executable's first icon (PrivateExtractIconsW)
 └── Not yet: custom caption
 iOS prototype (`HEXMobile`) -> Record/transcribe/copy and keyboard handoff
+├── Dictation language (iOS 26, Apple Speech): app and keyboard share the chosen
+│   supported locale; defaults to the first supported iPhone language.
 ├── Experiments: Full keyboard, Apple Intelligence cleanup, Custom vocabulary
 ├── Custom vocabulary (off by default): a local list of up to 100 terms; every
 │   engine spells matched words the listed way before cleanup and again after

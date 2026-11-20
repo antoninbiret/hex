@@ -127,9 +127,7 @@ actor AppleSpeechTranscriber: LocalTranscribing {
     }
 
     static func preferredLocale() async -> Locale? {
-        var identifiers = Locale.preferredLanguages
-        identifiers.append(Locale.current.identifier)
-        identifiers.append("en-US")
+        let identifiers = DictationLocale.candidates
 
         var checked = Set<String>()
         for identifier in identifiers {
